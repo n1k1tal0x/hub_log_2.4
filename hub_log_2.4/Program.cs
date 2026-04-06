@@ -1,10 +1,24 @@
 ﻿using Serilog;
+using Serilog.Events;
 
 namespace hub_log_2._4
 {
     internal class Program
     {
-        private static ILogger Logger = new LoggerConfiguration().WriteTo.File($"logs/log_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}").CreateLogger();
+        private static DateTimeOffset _now = DateTimeOffset.UtcNow;
+        private static ILogger Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+
+            .WriteTo.Logger(log => log.Filter.ByIncludingOnly(e=>e.Level == LogEventLevel.Information)
+            .WriteTo.File($"logs/{_now.ToString("d_MM_yyyy")}/Info.txt"))
+
+            .WriteTo.Logger(log => log.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Error)
+            .WriteTo.File($"logs/{_now.ToString("d_MM_yyyy")}/Error.txt"))
+
+            .WriteTo.Logger(log => log.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Fatal)
+            .WriteTo.File($"logs/{_now.ToString("d_MM_yyyy")}/Fatal.txt"))
+
+            .CreateLogger();
         private static ICollection<string> taskList;
         private static bool _appCicle = true;
         private static void AddTaskEvent()
@@ -23,7 +37,7 @@ namespace hub_log_2._4
                         return;
                     }
                     Console.WriteLine("Bad input");
-                    Logger.Information($"[AddTaskEvent] Bad input");
+                    Logger.Error($"[AddTaskEvent] Bad input");
                 }
             } catch (Exception ex)
             {
@@ -52,7 +66,7 @@ namespace hub_log_2._4
                         }
                     }
                     Console.WriteLine("Bad input");
-                    Logger.Information($"[RemoveTaskEvent] Bad input");
+                    Logger.Error($"[RemoveTaskEvent] Bad input");
                 }
             } catch (Exception ex)
             {
