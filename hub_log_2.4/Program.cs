@@ -195,10 +195,7 @@ namespace hub_log_2._4
             }
             finally
             {
-                Tracer.TaskManagerTrace.TraceEvent(
-                    TraceEventType.Stop,
-                    4010,
-                    "Приложение закрыто.");
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Stop, 4010, "Приложение закрыто.");
                 Tracer.Close();
             }
         }
