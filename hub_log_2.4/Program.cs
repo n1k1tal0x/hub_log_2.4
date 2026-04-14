@@ -1,106 +1,152 @@
-﻿using Serilog;
 using System.Diagnostics;
 
 namespace hub_log_2._4
 {
+    internal static class Tracer
+    {
+        public static readonly TraceSource TaskManagerTrace = CreateTaskManagerTrace();
+
+        private static TraceSource CreateTaskManagerTrace()
+        {
+            Directory.CreateDirectory("logs");
+
+            var traceSource = new TraceSource("TaskManagerTrace", SourceLevels.All);
+            traceSource.Listeners.Clear();
+            traceSource.Listeners.Add(new TextWriterTraceListener(Path.Combine("logs", $"trace_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.txt")));
+
+            Trace.AutoFlush = true;
+
+            return traceSource;
+        }
+
+        public static void Close()
+        {
+            TaskManagerTrace.Flush();
+            TaskManagerTrace.Close();
+        }
+    }
+
     internal class Program
     {
-        private static ILogger Logger = new LoggerConfiguration().WriteTo.File($"logs/log_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}").CreateLogger();
-        private static ICollection<string> taskList;
+        private static ICollection<string> taskList = new List<string>();
         private static bool _appCicle = true;
+
         private static void AddTaskEvent()
         {
-            Logger.Debug($"[AddTaskEvent] Start event");
+            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Start, 1000, "Добавления задачи.");
+
             var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 while (true)
                 {
                     Console.WriteLine("Enter task text:");
-                    string input = Console.ReadLine();
-                    Logger.Information($"[AddTaskEvent] User input: {input}");
-                    
-                    if (!String.IsNullOrEmpty(input))
+                    string? input = Console.ReadLine();
+
+                    Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Verbose, 1001, $"Ввод пользователя при добавлении задачи: {input}");
+
+                    if (!string.IsNullOrWhiteSpace(input))
                     {
                         taskList.Add(input);
-                        Logger.Information($"[AddTaskEvent] Task was added");
+                        stopwatch.Stop();
+
+                        Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information, 1002, $"Задача добавлена за {stopwatch.ElapsedMilliseconds} мс.");
                         return;
                     }
 
                     Console.WriteLine("Bad input");
-                    Logger.Information($"[AddTaskEvent] Bad input (input: {input})");
+                    Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Warning, 1003, "Попытка добавить задачу с пустым названием.");
                 }
-            } catch (Exception ex)
-            {
-                Logger.Debug($"[AddTaskEvent] Error");
-                Logger.Error(ex.Message);
-                Logger.Error(ex.StackTrace);
             }
-            stopwatch.Stop();
-            Logger.Debug($"[AddTaskEvent] End event (time: {stopwatch.ElapsedMilliseconds}ms)");
+            catch (Exception ex)
+            {
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Error, 1004, $"Ошибка при добавлении задачи: {ex}");
+            }
+            finally
+            {
+                stopwatch.Stop();
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Stop, 1005, $"Сценарий добавления задачи завершён за {stopwatch.ElapsedMilliseconds} мс.");
+            }
         }
+
         private static void RemoveTaskEvent()
         {
-            Logger.Debug($"[RemoveTaskEvent] Start event");
+            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Start, 2000, "Запущен сценарий удаления задачи.");
+
             var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 while (true)
                 {
                     Console.WriteLine("Enter task index:");
-                    string input = Console.ReadLine();
-                    Logger.Information($"[RemoveTaskEvent] User input: {input}");
-                    int index;
-                    if (int.TryParse(input, out index))
+                    string? input = Console.ReadLine();
+
+                    Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Verbose, 2001, $"Ввод пользователя при удалении задачи: {input}");
+
+                    if (int.TryParse(input, out int index))
                     {
                         var target = taskList.ElementAtOrDefault(index);
                         if (target != null)
                         {
                             taskList.Remove(target);
-                            Logger.Information($"[RemoveTaskEvent] Task was removed");
+                            stopwatch.Stop();
+
+                            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information, 2002, $"Задача с индексом {index} удалена за {stopwatch.ElapsedMilliseconds} мс.");
                             return;
                         }
-                        Logger.Error($"[RemoveTaskEvent] Index {index} don't exist");
-                    } else
-                    {
-                        Logger.Error($"[RemoveTaskEvent] Input isn't Int");
+
+                        Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Warning, 2003, $"Попытка удалить несуществующую задачу с индексом {index}.");
                     }
+                    else
+                    {
+                        Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Warning, 2004, $"Введено нечисловое значение индекса: {input}");
+                    }
+
                     Console.WriteLine("Bad input");
-                    Logger.Information($"[RemoveTaskEvent] Bad input (input: {input})");
+                    Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Warning, 2005, $"Некорректный ввод при удалении задачи: {input}");
                 }
-            } catch (Exception ex)
-            {
-                Logger.Debug($"[RemoveTaskEvent] Error");
-                Logger.Error(ex.Message);
-                Logger.Error(ex.StackTrace);
             }
-            stopwatch.Stop();
-            Logger.Debug($"[RemoveTaskEvent] End event (time: {stopwatch.ElapsedMilliseconds}ms)");
+            catch (Exception ex)
+            {
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Error, 2006, $"Ошибка при удалении задачи: {ex}");
+            }
+            finally
+            {
+                stopwatch.Stop();
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Stop, 2007, $"Сценарий удаления задачи завершён за {stopwatch.ElapsedMilliseconds} мс.");
+            }
         }
+
         private static void GetTasksEvent()
         {
             Console.WriteLine("Task list (index, text):");
-            Logger.Information("[GetTasksEvent] Start event");
+            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Start, 3000, "Запущен сценарий просмотра списка задач.");
+
             var stopwatch = Stopwatch.StartNew();
             int index = 0;
+
             foreach (var task in taskList)
             {
                 Console.WriteLine($"\t{index} - {task}");
-                Logger.Information($"[GetTasksEvent] [{index}] {task}");
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information, 3001, $"Задача [{index}]: {task}");
                 index++;
             }
+
             stopwatch.Stop();
-            Logger.Information($"[GetTasksEvent] End event (time: {stopwatch.ElapsedMilliseconds}ms)");
+            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Stop, 3002, $"Просмотр списка задач завершён за {stopwatch.ElapsedMilliseconds} мс.");
         }
+
         static void Main(string[] args)
         {
             try
             {
                 Console.WriteLine("Task manager!");
-                Logger.Information("App start");
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Start, 4000, "Приложение запущено.");
 
                 taskList = new List<string>();
-                Logger.Information("Init seccuess");
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information, 4001, "Инициализация списка задач выполнена.");
 
                 while (_appCicle)
                 {
@@ -109,37 +155,52 @@ namespace hub_log_2._4
     2 - Remove task
     3 - Show task list
     4 - Close app");
-                    var input = Console.ReadLine();
-                    Logger.Information($"User input: {input}");
-                    switch (input.ToLower().Trim())
+
+                    string? input = Console.ReadLine();
+                    Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Verbose,4002,$"Команда пользователя: {input}");
+
+                    if (string.IsNullOrWhiteSpace(input))
+                    {
+                        Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Warning, 4003, "Получена пустая команда в главном меню.");
+                        continue;
+                    }
+
+                    switch (input.Trim())
                     {
                         case "1":
-                            Logger.Information("Call AddTaskEvent");
+                            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information,4004, "Переход к сценарию добавления задачи.");
                             AddTaskEvent();
                             break;
                         case "2":
-                            Logger.Information("Call RemoveTaskEvent");
+                            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information, 4005, "Переход к сценарию удаления задачи.");
                             RemoveTaskEvent();
                             break;
                         case "3":
-                            Logger.Information("Call GetTasksEvent");
+                            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information, 4006, "Переход к сценарию просмотра задач.");
                             GetTasksEvent();
                             break;
                         case "4":
-                            Logger.Information("Call v");
+                            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Information,4007, "Получена команда на завершение приложения.");
                             _appCicle = false;
+                            break;
+                        default:
+                            Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Warning, 4008, $"Неизвестная команда пользователя: {input}");
                             break;
                     }
                 }
-            } catch (Exception ex)
-            {
-                Logger.Error("Error in Main()");
-                Logger.Fatal(ex.Message);
-                Logger.Fatal(ex.StackTrace);
-                Logger.Error("End error");
             }
-            Logger.Information("App closed");
-            Log.CloseAndFlush();
+            catch (Exception ex)
+            {
+                Tracer.TaskManagerTrace.TraceEvent(TraceEventType.Critical,4009,$"Критическая ошибка в Main: {ex}");
+            }
+            finally
+            {
+                Tracer.TaskManagerTrace.TraceEvent(
+                    TraceEventType.Stop,
+                    4010,
+                    "Приложение закрыто.");
+                Tracer.Close();
+            }
         }
     }
 }
